@@ -1,0 +1,457 @@
+# RSA step by step
+
+## 1. What RSA is doing
+
+RSA uses a pair of mathematically related keys:
+
+* 🔓 **Public key** — can be shared with everyone.
+* 🔐 **Private key** — must remain secret.
+
+For encryption, the important idea is:
+
+```text
+              Alice                                  Bob
+       wants to send "7"                       owns the key pair
+
+                                                    ┌─────────────┐
+                                                    │ PUBLIC KEY  │
+                                                    │   (n, e)    │
+                                                    └──────┬──────┘
+                                                           │
+                         public key ◀───────────────────────┘
+                              │
+                              ▼
+                         ┌─────────┐
+                         │ message │
+                         │    7    │
+                         └────┬────┘
+                              │
+                              │ use public key
+                              │
+                              ▼
+                    ┌───────────────────┐
+                    │     ENCRYPT       │
+                    │                   │
+                    │   c = m^e mod n   │
+                    └─────────┬─────────┘
+                              │
+                              ▼
+                         ┌──────────┐
+                         │ciphertext│
+                         │    13    │
+                         └────┬─────┘
+                              │
+                              │ send over network
+                              │
+              ────────────────┼──────────────────────────────▶
+                              │
+                                                          Bob
+                                                           │
+                                                           ▼
+                                                    ┌─────────────┐
+                                                    │ PRIVATE KEY │
+                                                    │   (n, d)    │
+                                                    └──────┬──────┘
+                                                           │
+                                                           ▼
+                                                 ┌───────────────────┐
+                                                 │      DECRYPT      │
+                                                 │                   │
+                                                 │   m = c^d mod n   │
+                                                 └─────────┬─────────┘
+                                                           │
+                                                           ▼
+                                                      ┌─────────┐
+                                                      │ message │
+                                                      │    7    │
+                                                      └─────────┘
+```
+
+The interesting property is:
+
+```text
+                    PUBLIC                         PRIVATE
+
+message ──────▶ RSA operation ──────▶ ciphertext ──────▶ RSA operation
+   7               using e                13               using d
+                                                               │
+                                                               ▼
+                                                               7
+```
+
+The public key can therefore be given to anyone:
+
+```text
+Public key
+   │
+   ├── n
+   └── e
+```
+
+while the private key stays with the owner:
+
+```text
+Private key
+   │
+   ├── n
+   └── d
+```
+
+---
+
+For now, we will ignore **how the keys were generated**.
+
+Assume somebody has already given us:
+
+<!-- livebook:{"force_markdown":true} -->
+
+```elixir
+public_key = {55, 3}
+private_key = {55, 27}
+```
+
+That means:
+
+```text
+Public key
+(n, e)
+(55, 3)
+
+
+Private key
+(n, d)
+(55, 27)
+```
+
+Let's encrypt the number `7`.
+
+<!-- livebook:{"force_markdown":true} -->
+
+```elixir
+message = 7
+
+{n, e} = public_key
+
+ciphertext =
+  message
+  |> Integer.pow(e)
+  |> rem(n)
+
+ciphertext
+```
+
+Result:
+
+```text
+13
+```
+
+So this happened:
+
+```text
+        message
+           7
+           │
+           │ public key (55, 3)
+           ▼
+      7³ mod 55
+           │
+           ▼
+          13
+       ciphertext
+```
+
+Now decrypt it with the private key:
+
+<!-- livebook:{"force_markdown":true} -->
+
+```elixir
+{n, d} = private_key
+
+decrypted_message =
+  ciphertext
+  |> Integer.pow(d)
+  |> rem(n)
+
+decrypted_message
+```
+
+Result:
+
+```text
+7
+```
+
+So the complete journey was:
+
+```text
+                    PUBLIC KEY                     PRIVATE KEY
+                     (55, 3)                        (55, 27)
+                        │                               │
+                        ▼                               ▼
+
+      7  ─────────▶  7³ mod 55  ─────▶  13  ─────▶ 13²⁷ mod 55 ─────▶ 7
+
+   message                            ciphertext                       message
+```
+
+Or mathematically:
+
+```text
+Encryption:
+
+c = m^e mod n
+
+c = 7³ mod 55
+c = 13
+```
+
+and:
+
+```text
+Decryption:
+
+m = c^d mod n
+
+m = 13²⁷ mod 55
+m = 7
+```
+
+Why does this work?
+
+```text
+7
+│
+│ raise to e
+▼
+7^e mod n
+│
+│ raise to d
+▼
+7 again
+```
+
+And where did these numbers come from?
+
+```text
+n = 55
+e = 3
+d = 27
+```
+
+That is what we will build step by step.
+
+The journey starts with two prime numbers:
+
+```text
+              p = 5              q = 11
+                 \                /
+                  \              /
+                   \            /
+                    ▼          ▼
+
+                      n = p × q
+
+                      n = 55
+```
+
+From `p` and `q`, we will eventually construct:
+
+```text
+             p                  q
+              \                /
+               \              /
+                └──────┬─────┘
+                       │
+                       ▼
+                       n
+                       │
+                ┌──────┴──────┐
+                │             │
+                ▼             ▼
+                e             d
+                │             │
+                ▼             ▼
+          PUBLIC KEY     PRIVATE KEY
+            (n, e)         (n, d)
+```
+
+> **Important:** this notebook is implementing RSA with tiny numbers to understand the mathematics. It is not an implementation that should be used for real cryptography.
+
+## Main Parts
+
+### Key generation
+
+```text
+                 ┌──────────────┐
+                 │ KEY GENERATION│
+                 └──────┬───────┘
+                        │
+              ┌─────────┴─────────┐
+              │                   │
+              ▼                   ▼
+         secret p             secret q
+              │                   │
+              └─────────┬─────────┘
+                        │
+                        ▼
+                   n = p × q
+                        │
+                        ▼
+                 derive e and d
+                        │
+              ┌─────────┴─────────┐
+              │                   │
+              ▼                   ▼
+       ┌──────────────┐     ┌──────────────┐
+       │  PUBLIC KEY  │     │ PRIVATE KEY  │
+       │    (n, e)    │     │    (n, d)    │
+       └──────────────┘     └──────────────┘
+```
+
+### Encryption and decryption
+
+```text
+       ┌─────────────┐
+       │   MESSAGE   │
+       └──────┬──────┘
+              │
+              ▼
+     convert / pad message
+              │
+              ▼
+       ┌─────────────┐
+       │ PUBLIC KEY  │
+       │    (n, e)   │
+       └──────┬──────┘
+              │
+              │  c = m^e mod n
+              ▼
+       ┌─────────────┐
+       │ CIPHERTEXT  │
+       └──────┬──────┘
+              │
+              ▼
+       ┌─────────────┐
+       │ PRIVATE KEY │
+       │    (n, d)   │
+       └──────┬──────┘
+              │
+              │  m = c^d mod n
+              ▼
+       ┌─────────────┐
+       │   MESSAGE   │
+       │  recovered  │
+       └─────────────┘
+```
+
+## Section
+
+## What is a prime number?
+
+```elixir
+# A prime number has exactly two positive divisors: 1 and itself
+prime_numbers = [2, 3, 5, 7, 11, 13, 17, 19, 23]
+# 11 = 1x11 -> prime, because it is only divisible by 1 and itself
+# 12 = 2 × 6 = 3 × 4 -> not a prime, because it is divisible by 1, 2, 3, 4, 6, itself
+```
+
+## RSA chooses two primes
+
+```elixir
+# Requirements for the prime numbers:
+# 1. They must be different p != q
+# 2. They must be big (e.g. ~1024 bits each or ~300 decimal digits). NOTE: 2^1024 ~ 10^308
+# 3. They must be secret
+p = 11 # secret
+q = 17 # secret
+```
+
+## RSA multiplies them
+
+```elixir
+# The product of these two primes is ~2048 bits number or ~600 decimal digits
+# RSA reveals the product while hiding its factors.
+n = p * q # public
+# NOTE: If the numbers are not big you can easily find them 
+# Is n divisible by 2? -> no.
+# Is n divisible by 3? -> no.
+# Is n divisible by 5? -> no.
+# Is n divisible by 7? -> no.
+# Is n divisible by 11? -> yes. Thus p = 11 and q = n / p = 187 / 11 = 17.
+
+# Why different p and q?
+# Let's pick p and q to be equal to 4957
+# p1 = 4957
+# n1 = p1 * p1
+# :math.sqrt(n1)
+# Then only thing we need to do is to take the square root of n and we will find p.
+
+# What is the role of n?
+# 1. It is the modulus used by RSA arithmetic.
+# 2. It hides p and q behind the difficult integer-factorisation problem.
+```
+
+## Why primes rather than arbitrary numbers?
+
+```elixir
+# This is partly because prime numbers give RSA very clean mathematical structure.
+# Prime numbers allows us to use #Euler's totient function — φ(n). https://en.wikipedia.org/wiki/Euler%27s_totient_function
+# φ(n) tells us: How many positive integers smaller than `n` are coprime with `n`?
+```
+
+## What does coprime mean?
+
+```elixir
+# Two numbers are coprime if their greatest common divisor is 1.
+a = 8 # divisors 1, 2, 4, 8
+b = 15 # divisors 1, 3, 5, 15
+# a and b are coprime because the only factor they share is 1.
+Integer.gcd(8, 15) # greatest common divisor
+# Integer.gcd(6, 15) # 6 -> 1, 2, 3, 6
+# NOTE: the coprimes don't need to be prime themselves
+```
+
+## What does φ(n) actually count?
+
+```elixir
+# take n = 10
+# φ(n) looks
+# 1 2 3 4 5 6 7 8 9
+# 1 → gcd(1,10) = 1    ✓
+# 2 → 2                ✗
+# 3 → 1                ✓
+# 4 → 2                ✗
+# 5 → 5                ✗
+# 6 → 2                ✗
+# 7 → 1                ✓
+# 8 → 2                ✗
+# 9 → 1                ✓
+# Integer.gcd(5, 10)
+```
+
+
+
+```elixir
+defmodule RsaLab.Math do
+  # Euler's totient (phi) for n = p * q, where p and q are distinct primes.
+  def phi_from_primes(p, q) do
+    (p - 1) * (q - 1)
+  end
+end
+
+p = 11
+q = 17
+
+n = p * q
+phi = RsaLab.Math.phi_from_primes(p, q)
+
+%{
+  p: p,
+  q: q,
+  n: n,
+  phi: phi
+}
+```
+
+1 and itself
