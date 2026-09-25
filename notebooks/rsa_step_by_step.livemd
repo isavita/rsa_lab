@@ -345,8 +345,6 @@ From `p` and `q`, we will eventually construct:
        └─────────────┘
 ```
 
-## Section
-
 ## What is a prime number?
 
 ```elixir
@@ -562,11 +560,18 @@ Enum.map([7, 17, 27, 37, 47, 57], &Integer.mod(&1, 10))
 
 # Mathematically:
 #    a × x ≡ 1 (mod n)
+#    a × x = 1 + k × n; k = 0, 1, 2, ...
 
 # For example let's work modulo 10.
 # Let's take a = 3
 # The multiplicative inverse of 3 modulo 10 is 7:
-# 3 × 7 = 21
+# 3 × 1 = 3 mod 10 = 3
+# 3 × 2 = 6 mod 10 = 6
+# 3 × 3 = 9 mod 10 = 9
+# 3 × 4 = 12 mod 10 = 2
+# 3 × 5 = 15 mod 10 = 5
+# 3 × 6 = 18 mod 10 = 8
+# 3 × 7 = 21 mod 10 = 1 <- BINGO
 # 21 mod 10 = 1
 Integer.mod(3 * 7, 10)
 
@@ -605,8 +610,6 @@ Integer.gcd(7, 160)
 Integer.gcd(23, 160)
 ```
 
-
-
 ```elixir
 defmodule RsaLab.Math do
   # Euler's totient (phi) for n = p * q, where p and q are distinct primes.
@@ -630,3 +633,100 @@ phi = RsaLab.Math.phi_from_primes(p, q)
 ```
 
 1 and itself
+
+## Day 2
+
+### Key generation
+
+```text
+                 ┌──────────────┐
+                 │ KEY GENERATION│
+                 └──────┬───────┘
+                        │
+              ┌─────────┴─────────┐
+              │                   │
+              ▼                   ▼
+         secret p             secret q
+              │                   │
+              └─────────┬─────────┘
+                        │
+                        ▼
+                   n = p × q
+                        │
+                        ▼
+                 derive e and d
+                        │
+              ┌─────────┴─────────┐
+              │                   │
+              ▼                   ▼
+       ┌──────────────┐     ┌──────────────┐
+       │  PUBLIC KEY  │     │ PRIVATE KEY  │
+       │    (n, e)    │     │    (n, d)    │
+       └──────────────┘     └──────────────┘
+```
+
+### Encryption and decryption
+
+```text
+       ┌─────────────┐
+       │   MESSAGE   │
+       └──────┬──────┘
+              │
+              ▼
+     convert / pad message
+              │
+              ▼
+       ┌─────────────┐
+       │ PUBLIC KEY  │
+       │    (n, e)   │
+       └──────┬──────┘
+              │
+              │  c = m^e mod n
+              ▼
+       ┌─────────────┐
+       │ CIPHERTEXT  │
+       └──────┬──────┘
+              │
+              ▼
+       ┌─────────────┐
+       │ PRIVATE KEY │
+       │    (n, d)   │
+       └──────┬──────┘
+              │
+              │  m = c^d mod n
+              ▼
+       ┌─────────────┐
+       │   MESSAGE   │
+       │  recovered  │
+       └─────────────┘
+```
+
+## Euler discovered a crucial property
+
+```elixir
+# Euler's theorem gives us an important property of numbers that are coprime with n.
+# If gcd(a, n) = 1, then a ^ phi(n) = 1 mod n.
+# Here `^` means a ^ b - 'a raised to the power b' (e.g. 2 ^ 3 = 2 * 2 * 2).
+# If a and n are coprime, raising a to the power phi(n) brings us back to 1 modulo n.
+# The Euler's theorem is a bridge between phi(n) and RSA.
+
+# What did we have in our example
+p = 11
+q = 17
+n = 187 # p * q = 187
+phi_n = 160 # phi(187) = (p - 1) * (q - 1) = 10 * 16 = 160
+
+# Example:
+a = 2
+Integer.gcd(a, n) |> IO.inspect(label: "gcd(#{a},#{n}) =")
+# Euler's theorem tells us:
+# a ^ phi(n) ≡ 1 (mod n)
+# 2^160 = 1 mod 187 
+# 2^160 = 1461501637330902918203684832716283019655932542976 mod 187 = 1 + k*187
+```
+
+## Soon how do we will choose e and d?
+
+```elixir
+
+```
