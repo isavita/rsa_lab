@@ -767,8 +767,129 @@ Integer.gcd(a, n) |> IO.inspect(label: "gcd(#{a},#{n}) =")
 # That inverse becomes the private exponent d.
 # e * d = 1 (mod phi(n))
 phi_n = 160
-# Choose:
+# Choose public e:
 e = 7
 Integer.gcd(e, phi) |> IO.inspect(label: "gcd(#{e},#{phi_n}) =")
+# Choose private d:
+d = 23
+# e * d = 1 (mod phi(n))
+Integer.gcd(e*d, phi) |> IO.inspect(label: "gcd(#{e}*#{d}=#{e*d},#{phi_n}) =")
+```
+
+## So we have
+
+```elixir
+# public exponent   e = 7
+# private exponent  d = 23
+
+#  e = 7
+#    │ modular inverse mod phi(n)
+#    ▼
+#  d = 23
+
+# we choose e coprime with phi(n) so that its modular inverse exists; that inverse is d
+# e × d ≡ 1 (mod phi(n))
+
+# NOTE: Not every number has a modular inverse
+# If we pick for example:
+# e = 8
+# we need 8 * d = 1 (mod phi(n))
+# 8 * 1 = 8 (mod 160)
+# 8 * 2 = 16 (mod 160)
+# 8 * 3 = 24 (mod 160)
+# ...
+# 8 * 19 = 152 (mod 160)
+# 8 * 20 = 0 (mod 160)
+
+# 8 * d = 1 + k * 160
+# d = 1/8 + k * 20 <- this will always have reminder 
+Integer.gcd(8, 160) |> IO.inspect(label: "gcd(8,160) =")
+```
+
+## RSA needs
+
+```elixir
+# gcd(e, phi(n)) = 1
+#         ↓
+# ed = 1 + k*phi(n)
+#         ↓
+# ed ≡ 1 mod phi(n)
+#         ↓
+# d exists
+```
+
+## Which values of e could we choose?
+
+```elixir
+# p = 11; q = 17, n = 187; phi(n) = 160
+# This gcd(e, phi(n)) = 1 must be true
+# 160 = 32 * 5 = 2^5 * 5
+# e  | gcd(e,160) | Valid?
+# 2	 |      2     | No
+# 3	 |      1     |	Yes
+# 4	 |      4     |	No
+# 5	 |      5     |	No
+# 6	 |      2     |	No
+# 7	 |      1     |	Yes
+# 8	 |      8     |	No
+# 9	 |      1     |	Yes
+# 10 |      10    |	No
+# 11 |      1     |	Yes
+# 13 |      1     |	Yes
+# 15 |      5     |	No
+
+# RSA doesn't require one unique e.
+Integer.gcd(117, 160)
+```
+
+## How could we choose e mathematically?
+
+```elixir
+# 1. Calculate phi(n).
+# 2. Pick an integer e where:
+#        1 < e < phi(n)
+# 3. Check:
+#        gcd(e, phi(n)) = 1
+# 4. If not, choose another e.
+
+# For example:
+# phi(n) = 160
+# choose
+e = 7
+# gcd(7,160) = 1 <- valid
+# We calculate d
+# d = 7^−1 (mod 160)
+# which gives us
+d = 23
+```
+
+## Real RSA usually doesn't randomly choose e
+
+```elixir
+# Very frequently the e is
+e = 65537
+# 65537 = 2^16 + 1
+
+# So you'll frequently see an RSA public key containing something conceptually like:
+
+# n = enormous ~ 2048-bit number
+# e = 65537
+
+# The modulus changes for every key (the phi(n) part).
+# But:
+# e = 65537
+# is very commonly reused.
+
+# That's completely fine because e is public anyway.
+```
+
+## Why 65537?
+
+```elixir
+# 1. 65537 is a prime - which make the check gcd(65537, phi(n)) = 1 simpler  
+# 2. It has a very convenient binary representation 65537 = 10000000000000001
+#    only two bits are not zero
+# small enough → fast public-key operations
+# large enough → avoids problems associated with extremely tiny exponents
 
 ```
