@@ -725,8 +725,50 @@ Integer.gcd(a, n) |> IO.inspect(label: "gcd(#{a},#{n}) =")
 # 2^160 = 1461501637330902918203684832716283019655932542976 mod 187 = 1 + k*187
 ```
 
-## Soon how do we will choose e and d?
+## How do we will choose e and d?
 
 ```elixir
+# Soon we will choose e and d so that:
+# e * d = 1 mod phi(n) = 1 + k * phi(n); where k = 1, 2, ...
+
+# That lets RSA turn:
+# m ^ (e * d)
+# into:
+# m ^ (1 + k * phi(n)) = m * (m ^ k * phi (n)) = m * (1) = m
+# and Euler's theorem is what eventually makes this collapse back to: m
+
+# Euler: a ^ phi(n) ≡ 1
+# Choose e and d: e * d ≡ 1 mod phi(n)
+# RSA: m ^ (e * d) ≡ m mod n
+```
+
+## Roughly RSA modular arithmetic
+
+```elixir
+# φ(n)
+#   ↓
+# creates a repeating cycle in modular arithmetic
+#   ↓
+# choose e and d to line up with that cycle
+#   ↓
+# raising to e and then d returns to the original value
+```
+
+## Choosing the public exponent e
+
+```elixir
+# We pick e such that it has the property:
+# gcd(e, phi(n)) = 1
+# phi(n) = phi(187) = 160
+# gcd(e, 160) = 1
+
+# Why?
+# Because e must have a multiplicative inverse modulo phi(n).  
+# That inverse becomes the private exponent d.
+# e * d = 1 (mod phi(n))
+phi_n = 160
+# Choose:
+e = 7
+Integer.gcd(e, phi) |> IO.inspect(label: "gcd(#{e},#{phi_n}) =")
 
 ```
