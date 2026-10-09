@@ -773,7 +773,7 @@ Integer.gcd(e, phi) |> IO.inspect(label: "gcd(#{e},#{phi_n}) =")
 # Choose private d:
 d = 23
 # e * d = 1 (mod phi(n))
-Integer.gcd(e*d, phi) |> IO.inspect(label: "gcd(#{e}*#{d}=#{e*d},#{phi_n}) =")
+Integer.mod(e * d, phi_n) |> IO.inspect(label: "mod(#{e}*#{d}=#{e*d},#{phi_n}) =")
 ```
 
 ## So we have
@@ -891,5 +891,177 @@ e = 65537
 #    only two bits are not zero
 # small enough → fast public-key operations
 # large enough → avoids problems associated with extremely tiny exponents
-
 ```
+
+## Day 3
+
+### Key generation
+
+```text
+                 ┌──────────────┐
+                 │ KEY GENERATION│
+                 └──────┬───────┘
+                        │
+              ┌─────────┴─────────┐
+              │                   │
+              ▼                   ▼
+         secret p             secret q
+              │                   │
+              └─────────┬─────────┘
+                        │
+                        ▼
+                   n = p × q
+                        │
+                        ▼
+                 derive e and d
+                        │
+              ┌─────────┴─────────┐
+              │                   │
+              ▼                   ▼
+       ┌──────────────┐     ┌──────────────┐
+       │  PUBLIC KEY  │     │ PRIVATE KEY  │
+       │    (n, e)    │     │    (n, d)    │
+       └──────────────┘     └──────────────┘
+```
+
+### Encryption and decryption
+
+```text
+       ┌─────────────┐
+       │   MESSAGE   │
+       └──────┬──────┘
+              │
+              ▼
+     convert / pad message
+              │
+              ▼
+       ┌─────────────┐
+       │ PUBLIC KEY  │
+       │    (n, e)   │
+       └──────┬──────┘
+              │
+              │  c = m^e mod n
+              ▼
+       ┌─────────────┐
+       │ CIPHERTEXT  │
+       └──────┬──────┘
+              │
+              ▼
+       ┌─────────────┐
+       │ PRIVATE KEY │
+       │    (n, d)   │
+       └──────┬──────┘
+              │
+              │  m = c^d mod n
+              ▼
+       ┌─────────────┐
+       │   MESSAGE   │
+       │  recovered  │
+       └─────────────┘
+```
+
+## How do we calculate the private exponent d?
+
+```elixir
+p = 11 # private prime number
+q = 17 # private prime number
+n = 11 * 17 # 187 public number
+phi_n = 160 # phi(187) = (p - 1) * (q - 1) = 10 * 16 =  160
+e = 7 # public encryption exponent
+
+# We need to find d satisfying:
+# e * d = 1 (mod phi(n)) = 1 + k * phi(n)
+# 7 * d = 1 + k * 160
+
+# 7 * 1 = 7 mod 160 -> 7
+# 7 * 2 = 14 mod 160 -> 14
+# 7 * 3 = 21 mod 160 -> 21
+# ...
+# 7 * 22 = 154 mod 160 -> 154
+# 7 * 23 = 161 mod 160 -> 1 <- Bingo!
+# d = 23
+# Does it need to be first one? Nope
+# 7 * 183 = 1281 mod 160 -> 1
+# Integer.mod(7 * 183, 160)
+
+# d = Enum.find(1..(phi_n - 1), fn x -> Integer.mod(e * x, phi_n) == 1 end)
+```
+
+## How the Extended Euclidean Algorithm finds d
+
+```elixir
+# 160 = 22 * 7 + 6
+# 7 = 1 * 6 + 1
+
+# 1 = 7 - (160 - 22 * 7)
+# 1 = 7 - 6
+
+# 1 = 23 * 7 - 160
+```
+
+## How the Extended Euclidean Algorithm works
+
+```elixir
+# The ordinary Euclidean Algorithm finds the greatest common divisor gcd 
+# of two numbers using repeated division.
+
+# The Extended Euclidean Algorithm goes further
+# it also finds two integers x and y satisfying:
+# a * x + b * x = gcd(a, b) - This is called Bezout's identity.
+
+# For RSA, we already know:
+
+e = 7
+phi_n = 160 # phi(187) = (p - 1) * (q - 1) = 10 * 16 = 160
+# gcd(a = e, b = phi_n) = 1
+
+# 7 * x + 160 * y = 1
+
+# Step 1: Euclidean Algorithm (find GCD)
+# We know that gcd(7, 160) = 1.
+
+# Step 2: Work backwards (find x and y)
+# 1 = 7 - 6
+# 1 = 7 - (160 - 22 * 7)
+# 1 = 23 * 7 - 160
+# gcd(e, phi_n) = d * e + y * phi_n
+
+x = 23
+y = -1
+
+# Verify Bezout's identity
+e * x + phi_n * y |> IO.inspect(label: "Bezout's identity")
+
+# Step 3: x is the modular inverse of e
+# 7 * 23 = 1 (mod 160)
+d = Integer.mod(x, phi_n) |> IO.inspect(label: "d")
+
+# Verify our private exponent
+Integer.mod(e * d, phi_n) |> IO.inspect(label: "e * d mod phi(n) = #{e} * #{d} mod (#{phi_n})")
+```
+
+## Implementation in elixir
+
+```elixir
+defmodule Euclid do
+  # a * x + b * y == gcd(a, b)
+  # we get {gcd, x, y}
+  def extended_gcd(a, 0), do: {a, 1, 0}
+  def extended_gcd(a, b) do
+    {gcd, x, y} = extended_gcd(b, rem(a, b))
+    {gcd, y, x - div(a, b) * y}
+  end
+end
+
+Euclid.extended_gcd(e, phi_n) |> IO.inspect(label: "{gcd(#{e}, #{phi_n}), x, y}")
+```
+
+## What do we have so far?
+
+```elixir
+# Private primes: (p, q) = (11, 17)
+# Public key: (n, e) = (187, 7)
+# Private key: (n, d) = (187, 23)
+```
+
+## Let's encode Hello, world!
