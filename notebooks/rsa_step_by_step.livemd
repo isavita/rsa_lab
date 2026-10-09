@@ -1064,4 +1064,180 @@ Euclid.extended_gcd(e, phi_n) |> IO.inspect(label: "{gcd(#{e}, #{phi_n}), x, y}"
 # Private key: (n, d) = (187, 23)
 ```
 
-## Let's encode Hello, world!
+## Simple example
+
+### Encrypting and decrypting "hi"
+
+Our keys:
+
+```text
+Public key:   (n, e) = (187, 7)
+Private key:  (n, d) = (187, 23)
+```
+
+### Encryption — Alice sends "hi" to Bob
+
+```text
+              ┌──────────────────┐
+              │   MESSAGE "hi"   │
+              └────────┬─────────┘
+                       │
+                       ▼
+              Convert to UTF-8
+                       │
+               ┌───────┴───────┐
+               ▼               ▼
+           'h' = 104       'i' = 105
+               │               │
+               ▼               ▼
+          ENCRYPT USING PUBLIC KEY
+                 (187, 7)
+
+              c = m^7 mod 187
+               │               │
+               ▼               ▼
+          104^7 mod 187   105^7 mod 187
+               │               │
+               ▼               ▼
+              179             96
+               │               │
+               └───────┬───────┘
+                       ▼
+              ┌──────────────────┐
+              │ CIPHERTEXT       │
+              │ [179, 96]        │
+              └────────┬─────────┘
+                       │
+                       ▼
+                  Send to Bob
+```
+
+### Decryption — Bob recovers "hi"
+
+```text
+              ┌──────────────────┐
+              │ CIPHERTEXT       │
+              │ [179, 96]        │
+              └────────┬─────────┘
+                       │
+                 PRIVATE KEY
+                  (187, 23)
+                       │
+                       ▼
+             m = c^23 mod 187
+                       │
+               ┌───────┴───────┐
+               ▼               ▼
+         179^23 mod 187   96^23 mod 187
+               │               │
+               ▼               ▼
+              104             105
+               │               │
+               ▼               ▼
+              'h'             'i'
+               │               │
+               └───────┬───────┘
+                       ▼
+              ┌──────────────────┐
+              │ ORIGINAL MESSAGE │
+              │       "hi"       │
+              └──────────────────┘
+```
+
+```elixir
+message = "hi" # [104, 105]
+p = 11
+q = 17
+n = 187
+e = 7
+d = 23
+
+# convert the UTF-8 string "hi" to bytes 
+bytes = :binary.bin_to_list(message) |> IO.inspect(label: "'hi' to bytes", charlists: :as_list)
+
+# c = m^e mod n = m^7 mod 187 (m - message, e = 7, n = 187, c - cipher)
+# 'h'
+# 104^7 mod 187 = 131593177923584 mod 187 = 179
+# 'i'
+# 105^7 mod 187 = 140710042265625 mod 187 = 96
+encrypted = 
+  Enum.map(bytes, fn byte -> Integer.mod(Integer.pow(byte, e), n) end)
+  |> IO.inspect(label: "#{inspect(bytes, charlists: :as_lists)}^#{e} mod #{n} encrypted")
+
+# m = c^d mod n (c - cipher, d = 23, n = 187, m - message)
+# 179
+# 179^23 mod 187 = 6540631965696128420322916230417828079450389770678939 mod 187 = 104
+# 96
+# 96^23 mod 187 = 3910554653407316789122934745158676505360859136 mod 187 = 105
+decrypted =
+  Enum.map(encrypted, fn cipher -> Integer.mod(Integer.pow(cipher, d), n) end)
+  |> IO.inspect(label: "#{inspect(encrypted, charlists: :as_lists)}^#{e} mod #{n} encrypted")
+```
+
+## Serious example
+
+```elixir
+# Two 1024-bit prime numbers (~309 decimal digits each)
+
+p =
+  String.to_integer(
+    "151358458404882542685732211677319830351213488860896531644579" <>
+    "075457500219154876823247411581136926936718031953440481635148" <>
+    "012196037971793918798683886387950999125896066957052878222964" <>
+    "895309427033243208347998796452526892684390310971242722404939" <>
+    "575901879020274216522966690729875361359526001338200876696979" <>
+    "536492391"
+  ) |> IO.inspect(label: "p")
+
+q =
+  String.to_integer(
+    "142464930204668045593976644912335191032909932762062678945968" <>
+    "319332913538422727221973619083536679979710152514769936039467" <>
+    "778291629154009245550154347302413902674170192021744061569489" <>
+    "322478517311383097008587818146109027705064430667059018916808" <>
+    "650838864703759844701937515107272200150979264530022496772800" <>
+    "805797557"
+  )  |> IO.inspect(label: "q")
+
+# RSA key generation
+n = p * q |> IO.inspect(label: "p * q")
+phi_n = (p - 1) * (q - 1) |> IO.inspect(label: "phi(n)")
+
+e = 65_537 |> IO.inspect(label: "e")
+
+# Calculate d using your existing Extended Euclidean Algorithm
+{1, x, _y} = Euclid.extended_gcd(e, phi_n)
+d = Integer.mod(x, phi_n) |> IO.inspect(label: "d")
+
+# Verify
+%{
+  p_digits: byte_size(Integer.to_string(p)),
+  q_digits: byte_size(Integer.to_string(q)),
+  n_digits: byte_size(Integer.to_string(n)),
+  d_digits: byte_size(Integer.to_string(d)),
+  modulus_bits: bit_size(:binary.encode_unsigned(n)),
+  inverse_check: Integer.mod(e * d, phi_n)
+}
+```
+
+## Encrypt
+
+```elixir
+message = "Bel: I'm coming for you RSA!"
+m = :binary.decode_unsigned(message)
+
+# Encryption: c = m^e mod n
+ciphertext =
+  :crypto.mod_pow(m, e, n)
+  |> :binary.decode_unsigned()
+
+# Decryption: m = c^d mod n
+decrypted =
+  :crypto.mod_pow(ciphertext, d, n)
+
+%{
+  message_number: m,
+  encrypted: ciphertext,
+  decrypted: decrypted
+}
+```
