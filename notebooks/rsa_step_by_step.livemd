@@ -1272,6 +1272,37 @@ bytes =
 message = :erlang.list_to_binary(bytes)
 ```
 
+## Day 4
+
+### Key generation
+
+```text
+                 ┌──────────────┐
+                 │ KEY GENERATION│
+                 └──────┬───────┘
+                        │
+              ┌─────────┴─────────┐
+              │                   │
+              ▼                   ▼
+         secret p             secret q
+              │                   │
+              └─────────┬─────────┘
+                        │
+                        ▼
+                   n = p × q
+                        │
+                        ▼
+                 derive e and d
+                        │
+              ┌─────────┴─────────┐
+              │                   │
+              ▼                   ▼
+       ┌──────────────┐     ┌──────────────┐
+       │  PUBLIC KEY  │     │ PRIVATE KEY  │
+       │    (n, e)    │     │    (n, d)    │
+       └──────────────┘     └──────────────┘
+```
+
 ## Picking random numbers (prime random numbers)
 
 ```elixir
@@ -1398,6 +1429,127 @@ n1024_bit_int == :binary.decode_unsigned(n1024_bitstring)
 :binary.encode_unsigned(n1024_bit_int) == n1024_bitstring
 
 bit_size(:binary.encode_unsigned(3))
+```
+
+## Picking a 1024-bit (128 bytes) number byte by byte
+
+```elixir
+(0b1010 == 10) |> IO.inspect(label: "binary notation") # 0|1 : 2^n
+(0o12 == 10) |> IO.inspect(label: "octal notation") # 0|1|2|3|4|5|6|7 : 8^n
+(0xA == 10) |> IO.inspect(label: "hexadecimal notation") # 0|1|2|3|4|5|6|7|8|9|A|B|C|D|E|F : 16^n
+(0xF == 15) |> IO.inspect(label: "hexadecimal notation")
+```
+
+```elixir
+# Let's have 3 bytes (24 bits total)
+# 00000001 = 1
+# 00000010 = 2
+# 00000011 = 3
+0x01 == 1  # true
+0x02 == 2  # true
+0x03 == 3  # true
+
+# Construct a binary containing our 3 bytes
+bytes = <<0x01, 0x02, 0x03>>
+
+bit_size(bytes) |> IO.inspect(label: "bits")   # 24
+byte_size(bytes) |> IO.inspect(label: "bytes") # 3
+
+# The complete binary representation:
+#
+# 00000001 00000010 00000011
+#
+# This is one integer using 24 bits:
+#
+# 0x010203 = 66051
+
+# Each byte contributes according to its position:
+#
+# First byte:  1 × 256² = 65536
+# Second byte: 2 × 256¹ =   512
+# Third byte:  3 × 256⁰ =     3
+#                           -----
+#                           66051
+
+a1 = 1 * 256 * 256 + 2 * 256 + 3
+
+a1 |> IO.inspect(label: "integer") # 66051
+
+# We can decode the binary directly
+:binary.decode_unsigned(bytes) == a1
+```
+
+```elixir
+# Now lets implement the following algorithm 
+# acc = (acc <<< 8) ||| byte
+acc = 0
+byte = 0x01
+acc = (acc <<< 8) ||| byte 
+acc |> IO.inspect(label: "step 1")
+byte = 0x02
+acc = (acc <<< 8) ||| byte
+acc |> IO.inspect(label: "step 2")
+byte = 0x03
+acc = (acc <<< 8) ||| byte
+acc |> IO.inspect(label: "step 3")
+```
+
+```elixir
+
+import Bitwise
+bytes = [
+  0x01,
+  0x02,
+  0x03
+]
+Enum.reduce(bytes, 0, fn b, acc -> (acc <<< 8) ||| b end)
+|> IO.inspect(label: "sanity check")
+
+(0x80 == 128) |> IO.inspect(label: "0x80 == 128")
+(0x0 == 0) |> IO.inspect(label: "0x0 == 0")
+(0x1 == 1)  |> IO.inspect(label: "0x1 == 1")
+
+# 1024 bits are 128 bytes
+bytes =
+  [0x80] ++ List.duplicate(0x0, 126) ++ [0x1]
+
+n1024_byte_by_byte = Enum.reduce(bytes, 0, fn b, acc -> (acc <<< 8) ||| b end)
+
+(n1024_bit_int == n1024_byte_by_byte) |> IO.inspect(label: "n1024_bit_int == n1024_byte_by_byte")
+
+%{
+  digits: length(Integer.digits(n1024_byte_by_byte, 2)),
+  bytes: byte_size(:binary.encode_unsigned(n1024_byte_by_byte)),
+  odd?: rem(n1024_byte_by_byte, 2) == 1,
+  smaller_than_2_to_power_1024?: (n1024_byte_by_byte < Integer.pow(2, 1024)),
+  bigger_than_2_to_power_1023?: (n1024_byte_by_byte > Integer.pow(2, 1023))
+}
+```
+
+## Randomness
+
+```elixir
+# How can we generate 128 unpredictable bytes
+# and what does it actually mean for a number to be cryptographically random?
+
+# Randomness describes the unpredictable outcomes we want.
+
+# Entropy measures uncertainty about an outcome.
+
+# PRNG (Pseudo Random Number Generator) is an algorithm
+# that produces numbers that appear random, starting from some internal state
+
+
+# Example A - a completely predictable generator
+next_number = fn n -> rem(n + 5, 256) end
+next_number.(1) |> IO.inspect(label: "1")
+next_number.(2) |> IO.inspect(label: "2")
+next_number.(3) |> IO.inspect(label: "3")
+next_number.(434) |> IO.inspect(label: "434 (maybe 439)")
+
+# Example B — a seeded generator
+
+# Example C — a cryptographically secure generator
 ```
 
 ```elixir
