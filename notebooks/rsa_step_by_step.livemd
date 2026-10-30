@@ -1271,3 +1271,143 @@ bytes =
 
 message = :erlang.list_to_binary(bytes)
 ```
+
+## Picking random numbers (prime random numbers)
+
+```elixir
+# Conditions for the number
+# 1. The number should be ~ 1024-bit (2^1023 <= n < 2^1024)
+# 2. The number should be secure-random
+# 3. The number should be prime
+```
+
+## Picking a 1024-bit (128 bytes) number
+
+```elixir
+# Lets take a look at 8-bit (1 byte) numbers
+# 00000000 = 0
+# 00000001 = 1
+# 00000010 = 2
+# 00000011 = 3
+# 00000100 = 4
+# 00000101 = 5
+# 00000110 = 6
+# ...
+# 10000000 = 128 <- smallest 8-bit integer
+# 11111111 = 255 <- biggest 8-bit integer
+
+# A 1024-bit integer (128 bytes)
+# 0...0 = 0 <- it will have 1024 positions (or 128 groups of 1 byte each)
+# FB...LB = n <- FB - first bit and LB - last bit
+# LB = 1 - means that the number is odd
+# FB = 1 - means the number is 1024-bit integer
+```
+
+```elixir
+# Simple way to create 1024-bit integer
+
+# Firstly let's create the smallest 8-bit integer 
+# We know that 1 in 8-bit is
+# 0000 0001 = 1
+# 1000 0000 = 2^7 = 128
+# to get from 1 to 128 we need to do 7 shifts
+
+
+import Bitwise
+1 <<< 7 |> IO.inspect(label: "1 <<< 7")
+smallest_1024_int = 1 <<< 1023 |> IO.inspect(label: "1 <<< 1023 is the smallest 1024-bit integer")
+
+# 1000 0000 = 128 the shift created the smallest 8-bit integer but even number
+# the LB = 0 which means even
+
+# 0000 0001 = 1
+# 1000 0000 = 128
+# Bitwise OR operator - |||
+# 1000 0001 = 129 
+(128 ||| 1) |> IO.inspect(label: "128 ||| 1")
+
+# We want to make our 1024-bit odd
+n1024_bit_int = (smallest_1024_int ||| 1) |> IO.inspect(label: "(1 <<< 1023) ||| 1 = 2^1023 + 1")
+```
+
+```elixir
+# we want to verify that our number is 1024-bit and it is odd
+%{
+  digits: length(Integer.digits(n1024_bit_int, 2)),
+  bytes: byte_size(:binary.encode_unsigned(n1024_bit_int)),
+  odd?: rem(n1024_bit_int, 2) == 1,
+  smaller_than_2_to_power_1024?: (n1024_bit_int < Integer.pow(2, 1024)),
+  bigger_than_2_to_power_1023?: (n1024_bit_int > Integer.pow(2, 1023))
+}
+```
+
+## Picking a 1024-bit (128 bytes) number the elixir way
+
+```elixir
+# 8-bit (1 byte) numbers as elixir bitstrings
+# 00000000 = 0
+# ...
+# 10000000 = 128 <- smallest 8-bit integer
+# 11111111 = 255 <- biggest 8-bit integer
+
+# now in elixir
+zero_bitstring = <<0>>
+bit_size(zero_bitstring) |> IO.inspect(label: "bit_size")
+byte_size(zero_bitstring) |> IO.inspect(label: "byte_size")
+(zero_bitstring == 0) |> IO.inspect(label: "bitstring == integer")
+(zero_bitstring == <<0>>) |> IO.inspect(label: "bitstring == bitstring")
+```
+
+```elixir
+# zero as 8-bit bitstring
+z1 = <<0>>
+z2 = <<0::8>>
+z3 = <<0::size(8)>>
+(z1 == z2 and z1 == z3) |> IO.inspect(label: "all three represent zero using 8 bits")
+
+bit_size(<<0::1>>) |> IO.inspect(label: "zero using 1 bit")
+bit_size(<<0::2>>) |> IO.inspect(label: "zero using 2 bits")
+bit_size(<<0::3>>) |> IO.inspect(label: "zero using 3 bits")
+
+# 0000 0001 = 1
+<<1::1>> |> IO.inspect(label: "one using 1 bit")
+
+# 0000 0010 = 2
+<<1::1, 0::1>>
+
+# 2-bit numbers
+<<0::1, 0::1>> |> IO.inspect(label: "zero using 2 bits")
+<<0::1, 1::1>> |> IO.inspect(label: "one using 2 bits")
+<<1::1, 0::1>> |> IO.inspect(label: "two using 2 bits")
+<<1::1, 1::1>> |> IO.inspect(label: "three using 2 bits")
+
+# 8-bit numbers as bitstring
+<<0::8>> |> IO.inspect(label: "zero using 8 bits")
+# 1000 0000
+<<1::1, 0::7>>  |> IO.inspect(label: "128 using 8 bits")
+```
+
+```elixir
+# smallest 1024-bit that is odd 
+smallest_1024_bitstring = <<1::1, 0::1023>> |> IO.inspect(label: "smallest 1024-bit integer")
+n1024_bitstring = <<1::1, 0::1022, 1::1>> |> IO.inspect(label: "n 1024-bit bitstring")
+
+n1024_bit_int |> IO.inspect(label: "n 1024-bit int")
+n1024_bit_int == n1024_bitstring
+n1024_bit_int == :binary.decode_unsigned(n1024_bitstring)
+:binary.encode_unsigned(n1024_bit_int) == n1024_bitstring
+
+bit_size(:binary.encode_unsigned(3))
+```
+
+```elixir
+# RSA implementations typically don't generate a prime directly.
+# They generate a random number and test whether it is prime. If it isn't, they try again.
+# 
+```
+
+```elixir
+defmodule PrimeGenerator do
+  
+end
+```
