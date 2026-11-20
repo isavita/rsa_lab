@@ -1601,3 +1601,78 @@ mod_fun_n = fn n -> rem(n + 7, 256) end
 
 # Determinism != Predictability to a particular observer
 ```
+
+## Example 4
+
+```elixir
+# Questions:
+# 1. Is it random?
+# 2. Why?
+# 3. Could an attacker predict it?
+
+# Example:
+time_fun = fn seconds -> rem(seconds + 7, 256) end
+
+now = System.system_time(:second)
+
+time_fun.(now)
+|> IO.inspect(label: "Random?\nNot necessarily\nWhy?\nThe result depends on the current time")
+```
+
+```elixir
+# What if an attacker knows the approximate execution time?
+possible_outputs =
+  Enum.map((now - 2)..(now + 2), time_fun)
+
+IO.inspect(possible_outputs,
+  label: "Possible results if execution was within +/- 2 seconds"
+)
+
+# Even if the output changes every second,
+# an attacker might only need to check 5 possibilities.
+
+# Changing over time != Cryptographically unpredictable
+```
+
+## Example 5
+
+```elixir
+# Questions:
+# 1. Is it random?
+# 2. What happens with the same seed?
+# 3. Can somebody reproduce the sequence?
+
+# PRNG = Pseudorandom Number Generator
+
+# Formula:
+# next_state = (a * current_state + c) mod m
+
+# Example:
+next_number = fn state -> rem(5 * state + 3, 16) end
+
+generate = fn seed ->
+  Enum.scan(1..8, seed, fn _, state ->
+    next_number.(state)
+  end)
+end
+
+first = generate.(1)
+second = generate.(1)
+third = generate.(2)
+
+IO.inspect(first, label: "First sequence", charlists: :as_lists)
+IO.inspect(second, label: "Same seed", charlists: :as_lists)
+IO.inspect(third, label: "Different seed", charlists: :as_lists)
+
+IO.inspect(first == second, label: "Same seed produces same output?")
+
+# Random?
+# Pseudorandom.
+
+# Why?
+# The generator produces a sequence determined entirely by its seed.
+# Knowing the seed and algorithm makes the whole sequence predictable.
+
+# A PRNG transforms its seed into a sequence.
+# It does not create new entropy.
+```
