@@ -1676,3 +1676,69 @@ IO.inspect(first == second, label: "Same seed produces same output?")
 # A PRNG transforms its seed into a sequence.
 # It does not create new entropy.
 ```
+
+## Example 6
+
+```elixir
+# Questions:
+# 1. Is it random?
+# 2. What makes it different from our previous PRNG?
+# 3. Does more complicated mathematics make it secure?
+
+# Blum-Blum-Shub (BBS)
+# Uses two primes p and q, such that divided by 4, both leave a remainder of 3.
+# n = p * q
+#
+# Start with a seed coprime to n.
+# Initial state = seed^2 mod n
+# Next state = state^2 mod n
+# Output one bit (0 or 1) from each new state.
+
+generate = fn seed ->
+  p = 383
+  q = 503
+  n = p * q
+
+  state = Integer.mod(seed * seed, n)
+
+  # Generate 128 bits (16 bytes)
+  Stream.unfold(state, fn current ->
+    next = Integer.mod(current * current, n)
+    {rem(next, 2), next}
+  end)
+  |> Enum.take(128)
+  |> Enum.chunk_every(8)
+  |> Enum.map(fn bits ->
+    Enum.reduce(bits, 0, fn bit, byte ->
+      byte * 2 + bit
+    end)
+  end)
+end
+
+first = generate.(12345)
+second = generate.(12345)
+third = generate.(54321)
+
+IO.inspect(first, label: "First sequence", charlists: :as_lists)
+IO.inspect(second, label: "Same seed", charlists: :as_lists)
+IO.inspect(third, label: "Different seed", charlists: :as_lists)
+
+IO.inspect(first == second, label: "Same seed produces same output?")
+
+# Random?
+# Pseudorandom. This particular example is NOT cryptographically secure.
+
+# Why is the design interesting?
+# Instead of a linear recurrence, it repeatedly squares modulo n.
+# With appropriately large primes and a secret random seed,
+# BBS has provable security properties related to integer factorisation.
+
+# Why is our version NOT secure?
+# n = 192649 is tiny and easily factorised.
+# Our seeds are fixed and known.
+# Anyone knowing the seed can reproduce every output.
+
+# Key lesson:
+# Stronger security does not come from complicated arithmetic alone.
+# It requires suitable mathematics, large parameters and secret entropy.
+```
