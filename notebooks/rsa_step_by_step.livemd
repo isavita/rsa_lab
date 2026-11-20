@@ -1538,9 +1538,8 @@ n1024_byte_by_byte = Enum.reduce(bytes, 0, fn b, acc -> (acc <<< 8) ||| b end)
 # A radioactive atom may decay in the next second or may survive for years.
 
 
-# For a mathematical function it describes uncertainty about an outcome.
-# Randomness describes how outcomes are generated
-# and how uncertain those outcomes are to an observer.
+# Randomness for a mathematical function describes uncertainty about an outcome.
+# And how uncertain those outcomes are to an observer.
 ```
 
 ## Example 1
