@@ -1526,40 +1526,78 @@ n1024_byte_by_byte = Enum.reduce(bytes, 0, fn b, acc -> (acc <<< 8) ||| b end)
 }
 ```
 
-## Randomness
+## Day 5
+
+## What exactly is randomness and randomness of a function?
 
 ```elixir
-# How can we generate 128 unpredictable bytes
-# and what does it actually mean for a number to be cryptographically random?
+# We will discuss randomness not as an intrinsic property.
 
-# Randomness describes the unpredictable outcomes we want.
+# Example of randomness as an intrinsic property:
 
-# Entropy measures uncertainty about an outcome.
-
-# PRNG (Pseudo Random Number Generator) is an algorithm
-# that produces numbers that appear random, starting from some internal state
+# A radioactive atom may decay in the next second or may survive for years.
 
 
-# Example A - a completely predictable generator
-next_number = fn n -> rem(n + 5, 256) end
-next_number.(1) |> IO.inspect(label: "1")
-next_number.(2) |> IO.inspect(label: "2")
-next_number.(3) |> IO.inspect(label: "3")
-next_number.(434) |> IO.inspect(label: "434 (maybe 439)")
-
-# Example B — a seeded generator
-
-# Example C — a cryptographically secure generator
+# For a mathematical function it describes uncertainty about an outcome.
+# Randomness describes how outcomes are generated
+# and how uncertain those outcomes are to an observer.
 ```
 
-```elixir
-# RSA implementations typically don't generate a prime directly.
-# They generate a random number and test whether it is prime. If it isn't, they try again.
-# 
-```
+## Example 1
 
 ```elixir
-defmodule PrimeGenerator do
-  
-end
+# Questions:
+# 1. Is it random?
+# 2. Why?
+
+# Example:
+always_same = fn _ -> 7 end
+
+{always_same.(5), always_same.(7), always_same.(832)}
+|> IO.inspect(label: "Random?\nNo\nWhy?\nEntirely predictable (e.g. it always returns the same value)")
+```
+
+## Example 2
+
+```elixir
+# Questions:
+# 1. Is it random?
+# 2. Why?
+
+# Example:
+# (n + 7) mod 256
+mod_fun = fn n -> rem(n + 7, 256) end
+
+{mod_fun.(5), mod_fun.(7), mod_fun.(832)}
+|> IO.inspect(label: "Random?\nNo\nWhy?\nThe output is completely determined by the input.\nKnowing 'n' is enough to calculate the exact result")
+```
+
+## Example 1 vs Example 2
+
+```elixir
+# Example 1 always returns the same value.
+# Example 2 returns different values.
+
+# Does that make Example 2 more random?
+
+# No, assuming the inputs are known and fixed.
+# Both are perfectly deterministic.
+
+# Variation != Randomness
+```
+
+## Example 3
+
+```elixir
+# What happens if we don't know the input?
+# f(n) = (n + 7) mod 256
+
+mod_fun_n = fn n -> rem(n + 7, 256) end
+
+# Can we predict the result?
+
+# We can say the result will be between 0..255; when n is a positive integer 
+# We know that the result is deterministic
+
+# Determinism != Predictability to a particular observer
 ```
